@@ -42,6 +42,12 @@ class InMemoryStudentRepository : StudentRepository {
         _students.value = listOf(student) + _students.value
     }
 
+    override suspend fun updateStudent(student: Student) {
+        _students.value = _students.value.map {
+            if (it.id == student.id) student else it
+        }
+    }
+
     override suspend fun deleteStudent(studentId: String) {
         _students.value = _students.value.filter { it.id != studentId }
     }

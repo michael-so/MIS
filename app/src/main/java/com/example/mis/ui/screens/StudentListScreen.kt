@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.mis.ui.StudentViewModel
 import com.example.mis.ui.components.DeleteConfirmationDialog
+import com.example.mis.ui.components.EditStudentDialog
 import com.example.mis.ui.components.StudentCard
 import com.example.mis.ui.components.StudentDetailDialog
 
@@ -52,6 +53,17 @@ fun StudentListScreen(
     val searchQuery by viewModel.searchQuery.collectAsState()
     val selectedStudentDetail by viewModel.selectedStudentForDetail.collectAsState()
     val studentToDelete by viewModel.studentToDelete.collectAsState()
+
+    val studentToEdit by viewModel.studentToEdit.collectAsState()
+    val editNameInput by viewModel.editNameInput.collectAsState()
+    val editMatricInput by viewModel.editMatricInput.collectAsState()
+    val editCourseInput by viewModel.editCourseInput.collectAsState()
+    val editFacultyInput by viewModel.editFacultyInput.collectAsState()
+
+    val editNameError by viewModel.editNameError.collectAsState()
+    val editMatricError by viewModel.editMatricError.collectAsState()
+    val editCourseError by viewModel.editCourseError.collectAsState()
+    val editFacultyError by viewModel.editFacultyError.collectAsState()
 
     Column(
         modifier = modifier
@@ -220,6 +232,7 @@ fun StudentListScreen(
                     StudentCard(
                         student = student,
                         onCardClick = { viewModel.showStudentDetail(student) },
+                        onEditClick = { viewModel.startEditStudent(student) },
                         onDeleteClick = { viewModel.requestDeleteStudent(student) }
                     )
                 }
@@ -232,10 +245,34 @@ fun StudentListScreen(
         StudentDetailDialog(
             student = student,
             onDismiss = { viewModel.showStudentDetail(null) },
+            onEdit = {
+                viewModel.showStudentDetail(null)
+                viewModel.startEditStudent(student)
+            },
             onDelete = {
                 viewModel.showStudentDetail(null)
                 viewModel.requestDeleteStudent(student)
             }
+        )
+    }
+
+    // Edit Modal Dialog
+    studentToEdit?.let {
+        EditStudentDialog(
+            name = editNameInput,
+            matricNo = editMatricInput,
+            course = editCourseInput,
+            faculty = editFacultyInput,
+            nameError = editNameError,
+            matricError = editMatricError,
+            courseError = editCourseError,
+            facultyError = editFacultyError,
+            onNameChange = { viewModel.onEditNameChange(it) },
+            onMatricChange = { viewModel.onEditMatricChange(it) },
+            onCourseChange = { viewModel.onEditCourseChange(it) },
+            onFacultyChange = { viewModel.onEditFacultyChange(it) },
+            onConfirm = { viewModel.confirmEditStudent() },
+            onDismiss = { viewModel.cancelEditStudent() }
         )
     }
 

@@ -76,6 +76,34 @@ class StudentViewModel(
     private val _facultyError = MutableStateFlow<String?>(null)
     val facultyError: StateFlow<String?> = _facultyError.asStateFlow()
 
+    // Edit Student Form Inputs & Errors
+    private val _studentToEdit = MutableStateFlow<Student?>(null)
+    val studentToEdit: StateFlow<Student?> = _studentToEdit.asStateFlow()
+
+    private val _editNameInput = MutableStateFlow("")
+    val editNameInput: StateFlow<String> = _editNameInput.asStateFlow()
+
+    private val _editMatricInput = MutableStateFlow("")
+    val editMatricInput: StateFlow<String> = _editMatricInput.asStateFlow()
+
+    private val _editCourseInput = MutableStateFlow("")
+    val editCourseInput: StateFlow<String> = _editCourseInput.asStateFlow()
+
+    private val _editFacultyInput = MutableStateFlow("")
+    val editFacultyInput: StateFlow<String> = _editFacultyInput.asStateFlow()
+
+    private val _editNameError = MutableStateFlow<String?>(null)
+    val editNameError: StateFlow<String?> = _editNameError.asStateFlow()
+
+    private val _editMatricError = MutableStateFlow<String?>(null)
+    val editMatricError: StateFlow<String?> = _editMatricError.asStateFlow()
+
+    private val _editCourseError = MutableStateFlow<String?>(null)
+    val editCourseError: StateFlow<String?> = _editCourseError.asStateFlow()
+
+    private val _editFacultyError = MutableStateFlow<String?>(null)
+    val editFacultyError: StateFlow<String?> = _editFacultyError.asStateFlow()
+
     // UI Message Event (Snackbar)
     private val _snackbarMessage = MutableSharedFlow<String>()
     val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
@@ -152,6 +180,71 @@ class StudentViewModel(
                     _matricError.value = result.errors.matricError
                     _courseError.value = result.errors.courseError
                     _facultyError.value = result.errors.facultyError
+                }
+            }
+        }
+    }
+
+    fun startEditStudent(student: Student) {
+        _studentToEdit.value = student
+        _editNameInput.value = student.name
+        _editMatricInput.value = student.matricNo
+        _editCourseInput.value = student.course
+        _editFacultyInput.value = student.faculty
+        _editNameError.value = null
+        _editMatricError.value = null
+        _editCourseError.value = null
+        _editFacultyError.value = null
+    }
+
+    fun onEditNameChange(value: String) {
+        _editNameInput.value = value
+        if (value.isNotBlank()) _editNameError.value = null
+    }
+
+    fun onEditMatricChange(value: String) {
+        _editMatricInput.value = value
+        if (value.isNotBlank()) _editMatricError.value = null
+    }
+
+    fun onEditCourseChange(value: String) {
+        _editCourseInput.value = value
+        if (value.isNotBlank()) _editCourseError.value = null
+    }
+
+    fun onEditFacultyChange(value: String) {
+        _editFacultyInput.value = value
+        if (value.isNotBlank()) _editFacultyError.value = null
+    }
+
+    fun cancelEditStudent() {
+        _studentToEdit.value = null
+    }
+
+    fun confirmEditStudent() {
+        val currentStudent = _studentToEdit.value ?: return
+        viewModelScope.launch {
+            val result = useCases.updateStudent(
+                studentId = currentStudent.id,
+                name = _editNameInput.value,
+                matricNo = _editMatricInput.value,
+                course = _editCourseInput.value,
+                faculty = _editFacultyInput.value
+            )
+
+            when (result) {
+                is RegistrationResult.Success -> {
+                    _studentToEdit.value = null
+                    if (_selectedStudentForDetail.value?.id == currentStudent.id) {
+                        _selectedStudentForDetail.value = result.student
+                    }
+                    _snackbarMessage.emit("Student '${result.student.name}' updated successfully!")
+                }
+                is RegistrationResult.Error -> {
+                    _editNameError.value = result.errors.nameError
+                    _editMatricError.value = result.errors.matricError
+                    _editCourseError.value = result.errors.courseError
+                    _editFacultyError.value = result.errors.facultyError
                 }
             }
         }

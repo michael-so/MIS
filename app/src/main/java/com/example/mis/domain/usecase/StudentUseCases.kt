@@ -6,6 +6,7 @@ data class StudentUseCases(
     val getStudents: GetStudentsUseCase,
     val searchStudents: SearchStudentsUseCase,
     val registerStudent: RegisterStudentUseCase,
+    val updateStudent: UpdateStudentUseCase,
     val deleteStudent: DeleteStudentUseCase,
     val validateInput: ValidateStudentInputUseCase
 ) {
@@ -16,6 +17,7 @@ data class StudentUseCases(
                 getStudents = GetStudentsUseCase(repository),
                 searchStudents = SearchStudentsUseCase(),
                 registerStudent = RegisterStudentUseCase(repository, validateInput),
+                updateStudent = UpdateStudentUseCase(repository),
                 deleteStudent = DeleteStudentUseCase(repository),
                 validateInput = validateInput
             )
