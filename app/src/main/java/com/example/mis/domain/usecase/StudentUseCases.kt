@@ -4,6 +4,7 @@ import com.example.mis.data.repository.StudentRepository
 
 data class StudentUseCases(
     val getStudents: GetStudentsUseCase,
+    val getFaculties: GetFacultiesUseCase,
     val searchStudents: SearchStudentsUseCase,
     val registerStudent: RegisterStudentUseCase,
     val updateStudent: UpdateStudentUseCase,
@@ -15,6 +16,7 @@ data class StudentUseCases(
             val validateInput = ValidateStudentInputUseCase(repository)
             return StudentUseCases(
                 getStudents = GetStudentsUseCase(repository),
+                getFaculties = GetFacultiesUseCase(repository),
                 searchStudents = SearchStudentsUseCase(),
                 registerStudent = RegisterStudentUseCase(repository, validateInput),
                 updateStudent = UpdateStudentUseCase(repository),

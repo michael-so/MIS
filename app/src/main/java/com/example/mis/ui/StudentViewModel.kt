@@ -2,8 +2,8 @@ package com.example.mis.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.mis.core.di.ServiceLocator
 import com.example.mis.data.model.Student
-import com.example.mis.data.repository.InMemoryStudentRepository
 import com.example.mis.data.repository.StudentRepository
 import com.example.mis.domain.model.RegistrationResult
 import com.example.mis.domain.usecase.StudentUseCases
@@ -18,16 +18,33 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class AppScreen {
+    HOME_MENU,
+    STUDENT_LIST,
+    FACULTY_LIST,
+    REGISTER_STUDENT
+}
+
 class StudentViewModel(
-    repository: StudentRepository = InMemoryStudentRepository(),
-    private val useCases: StudentUseCases = StudentUseCases.create(repository)
+    repository: StudentRepository = ServiceLocator.provideStudentRepository(),
+    private val useCases: StudentUseCases = ServiceLocator.provideStudentUseCases(repository)
 ) : ViewModel() {
+
+    private val _currentScreen = MutableStateFlow(AppScreen.HOME_MENU)
+    val currentScreen: StateFlow<AppScreen> = _currentScreen.asStateFlow()
 
     val students: StateFlow<List<Student>> = useCases.getStudents()
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5000),
             initialValue = emptyList()
+        )
+
+    val facultyGroupedStudents: StateFlow<Map<String, List<Student>>> = useCases.getFaculties()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyMap()
         )
 
     private val _searchQuery = MutableStateFlow("")
@@ -40,9 +57,6 @@ class StudentViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = emptyList()
     )
-
-    private val _selectedTab = MutableStateFlow(0)
-    val selectedTab: StateFlow<Int> = _selectedTab.asStateFlow()
 
     private val _selectedStudentForDetail = MutableStateFlow<Student?>(null)
     val selectedStudentForDetail: StateFlow<Student?> = _selectedStudentForDetail.asStateFlow()
@@ -108,8 +122,12 @@ class StudentViewModel(
     private val _snackbarMessage = MutableSharedFlow<String>()
     val snackbarMessage: SharedFlow<String> = _snackbarMessage.asSharedFlow()
 
-    fun setSelectedTab(index: Int) {
-        _selectedTab.value = index
+    fun navigateTo(screen: AppScreen) {
+        _currentScreen.value = screen
+    }
+
+    fun navigateBack() {
+        _currentScreen.value = AppScreen.HOME_MENU
     }
 
     fun setSearchQuery(query: String) {
@@ -173,7 +191,7 @@ class StudentViewModel(
                     _facultyError.value = null
                     clearForm()
                     _snackbarMessage.emit("Student '${result.student.name}' registered successfully!")
-                    _selectedTab.value = 0
+                    _currentScreen.value = AppScreen.STUDENT_LIST
                 }
                 is RegistrationResult.Error -> {
                     _nameError.value = result.errors.nameError
