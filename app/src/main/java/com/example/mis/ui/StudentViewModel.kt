@@ -1,70 +1,44 @@
 package com.example.mis.ui
 
 import androidx.lifecycle.ViewModel
-import com.example.mis.data.Student
+import androidx.lifecycle.viewModelScope
+import com.example.mis.data.model.Student
+import com.example.mis.data.repository.InMemoryStudentRepository
+import com.example.mis.data.repository.StudentRepository
+import com.example.mis.domain.model.RegistrationResult
+import com.example.mis.domain.usecase.StudentUseCases
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
-
-import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 
-class StudentViewModel : ViewModel() {
+class StudentViewModel(
+    repository: StudentRepository = InMemoryStudentRepository(),
+    private val useCases: StudentUseCases = StudentUseCases.create(repository)
+) : ViewModel() {
 
-    private val _students = MutableStateFlow<List<Student>>(
-        listOf(
-            Student(
-                name = "Ahmad Bin Zulkifli",
-                matricNo = "AI210045",
-                course = "Software Engineering",
-                faculty = "Faculty of Computing"
-            ),
-            Student(
-                name = "Siti Nurhaliza Binti Hassan",
-                matricNo = "BI210112",
-                course = "Computer Science",
-                faculty = "Faculty of Computing"
-            ),
-            Student(
-                name = "Tan Wei Ming",
-                matricNo = "CI220089",
-                course = "Information Technology",
-                faculty = "Faculty of Computing"
-            ),
-            Student(
-                name = "Nurul Izzah Binti Rosli",
-                matricNo = "EI220150",
-                course = "Data Science",
-                faculty = "Faculty of Computing"
-            )
+    val students: StateFlow<List<Student>> = useCases.getStudents()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
         )
-    )
-    val students: StateFlow<List<Student>> = _students.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
 
-    val filteredStudents: StateFlow<List<Student>> = combine(_students, _searchQuery) { list, query ->
-        if (query.isBlank()) {
-            list
-        } else {
-            val q = query.trim().lowercase()
-            list.filter {
-                it.name.lowercase().contains(q) ||
-                        it.matricNo.lowercase().contains(q) ||
-                        it.course.lowercase().contains(q) ||
-                        it.faculty.lowercase().contains(q)
-            }
-        }
+    val filteredStudents: StateFlow<List<Student>> = combine(students, _searchQuery) { list, query ->
+        useCases.searchStudents(list, query)
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
-        initialValue = _students.value
+        initialValue = emptyList()
     )
 
     private val _selectedTab = MutableStateFlow(0)
@@ -144,67 +118,43 @@ class StudentViewModel : ViewModel() {
 
     fun confirmDeleteStudent() {
         val student = _studentToDelete.value ?: return
-        _students.value = _students.value.filter { it.id != student.id }
-        _studentToDelete.value = null
-        if (_selectedStudentForDetail.value?.id == student.id) {
-            _selectedStudentForDetail.value = null
+        viewModelScope.launch {
+            useCases.deleteStudent(student.id)
+            _studentToDelete.value = null
+            if (_selectedStudentForDetail.value?.id == student.id) {
+                _selectedStudentForDetail.value = null
+            }
+            _snackbarMessage.emit("Student '${student.name}' deleted successfully.")
         }
-        _snackbarMessage.tryEmit("Student '${student.name}' deleted successfully.")
     }
 
-    fun registerStudent(): Boolean {
-        var isValid = true
+    fun registerStudent() {
+        viewModelScope.launch {
+            val result = useCases.registerStudent(
+                name = _nameInput.value,
+                matricNo = _matricInput.value,
+                course = _courseInput.value,
+                faculty = _facultyInput.value
+            )
 
-        val name = _nameInput.value.trim()
-        val matricNo = _matricInput.value.trim()
-        val course = _courseInput.value.trim()
-        val faculty = _facultyInput.value.trim()
-
-        if (name.isBlank()) {
-            _nameError.value = "Student name is required"
-            isValid = false
-        } else {
-            _nameError.value = null
+            when (result) {
+                is RegistrationResult.Success -> {
+                    _nameError.value = null
+                    _matricError.value = null
+                    _courseError.value = null
+                    _facultyError.value = null
+                    clearForm()
+                    _snackbarMessage.emit("Student '${result.student.name}' registered successfully!")
+                    _selectedTab.value = 0
+                }
+                is RegistrationResult.Error -> {
+                    _nameError.value = result.errors.nameError
+                    _matricError.value = result.errors.matricError
+                    _courseError.value = result.errors.courseError
+                    _facultyError.value = result.errors.facultyError
+                }
+            }
         }
-
-        if (matricNo.isBlank()) {
-            _matricError.value = "Matric No. is required"
-            isValid = false
-        } else if (_students.value.any { it.matricNo.equals(matricNo, ignoreCase = true) }) {
-            _matricError.value = "Matric No. '$matricNo' is already registered"
-            isValid = false
-        } else {
-            _matricError.value = null
-        }
-
-        if (course.isBlank()) {
-            _courseError.value = "Course is required"
-            isValid = false
-        } else {
-            _courseError.value = null
-        }
-
-        if (faculty.isBlank()) {
-            _facultyError.value = "Faculty is required"
-            isValid = false
-        } else {
-            _facultyError.value = null
-        }
-
-        if (!isValid) return false
-
-        val newStudent = Student(
-            name = name,
-            matricNo = matricNo,
-            course = course,
-            faculty = faculty
-        )
-
-        _students.value = listOf(newStudent) + _students.value
-        clearForm()
-        _snackbarMessage.tryEmit("Student '$name' registered successfully!")
-        _selectedTab.value = 0 // Switch to student list tab
-        return true
     }
 
     fun clearForm() {
